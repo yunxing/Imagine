@@ -1,0 +1,187 @@
+<html>
+  <head>
+    <title>{{title}}</title>
+    <link rel="stylesheet" href="./chat.css" type="text/css" />
+    <link href='http://fonts.googleapis.com/css?family=Pacifico'
+	  rel='stylesheet' type='text/css'>
+    <link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css"
+	  rel="stylesheet" type="text/css">
+    <script type="text/javascript">
+        var languageFrom = "zh-cn";
+        var languageTo = "en";
+	
+        function translate(text) {
+            window.mycallback = function(response) {addTranslate(response); }
+            var s = document.createElement("script");
+            s.src =
+            "http://api.microsofttranslator.com/V2/Ajax.svc/Translate?oncomplete=mycallback&appId=BFB3212B5FDA23673DA222B721F3D2B41CBF09DA&from="
+            + languageFrom + "&to=" + languageTo + "&text=" + encodeURI(text);
+            document.getElementsByTagName("head")[0].appendChild(s);
+        }
+    </script>
+                         
+    <script type="text/JavaScript">
+      var ws;
+      var state = 0;
+      var focus = true;
+      var newMsg = false;
+      function onFocus() {ws.send("/status/online");}
+      function onBlur() {ws.send("/status/away");}      
+      function changeTitle(title) { document.title = title; }
+      function checkBlink()
+      {
+      if (state == 0)
+      {
+      changeTitle('{{title}}');
+      if (newMsg && !focus)
+      {
+      state = 1;
+      }
+      }
+      else if (state == 1)
+      {
+      state = 2;
+      if (focus)
+      state = 0;
+      else
+      changeTitle('**New Message**');
+      }
+      else if (state == 2)
+      {
+      changeTitle('{{title}}');
+      state = 1;
+      if (focus)
+      state = 0;
+      }
+      setTimeout('checkBlink();',2000);      
+      }
+      
+      function padLeft(str,lenght){ 
+      if(str.length >= lenght) 
+      return str; 
+      else 
+      return padLeft("0" +str,lenght); 
+      } 
+      function padRight(str,lenght){ 
+      if(str.length >= lenght) 
+      return str; 
+      else 
+      return padRight(str+"0",lenght); 
+      }
+      function addTranslate(text){
+      var date = new Date();
+      document.getElementById('translate').innerHTML =
+      "<font color='blue'>[" +
+	padLeft(''+date.getHours(), 2) + ':' +	
+	padLeft(''+date.getMinutes(), 2) + ':' +
+	padLeft(''+date.getSeconds(), 2) + '] </font>' + text + "<br>" + document.getElementById('translate').innerHTML;			}
+      function StartsWith(s1, s2) {
+      return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
+      }
+      
+      function addStatus(text){
+      var date = new Date();
+      document.getElementById('status').innerHTML =
+      "<font color='blue'>[" +
+	padLeft(''+date.getHours(), 2) + ':' +	
+	padLeft(''+date.getMinutes(), 2) + ':' +
+	padLeft(''+date.getSeconds(), 2) + '] </font>' + text + "<br>" + document.getElementById('status').innerHTML;			}
+      function StartsWith(s1, s2) {
+      return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
+      }
+      function send(){
+      if (document.getElementById('words').value != ''){
+      ws.send("/say/" + document.getElementById('words').value);
+      document.getElementById('words').value = '';
+      }  
+      }
+      function ready(){
+      newMsg=false;
+      focus=true;
+      if ("WebSocket" in window) {
+      ws = new WebSocket("ws://{{ ip }}:8080/service");
+      } else if ("MozWebSocket" in window) {
+      ws = new MozWebSocket("ws://{{ ip }}:8080/service");
+      }
+      if (ws) {
+      setTimeout('checkBlink();',2000);
+      // browser supports websockets
+      ws.onopen = function() {
+      // websocket is connected
+      addStatus("websocket connected!");
+      // send hello data to server.
+      ws.send('/register/{{user}}');
+      addStatus("sent message to server: 'hello server'!");
+      };
+      ws.onmessage = function (evt) {
+      var receivedMsg = evt.data;
+      if(StartsWith(receivedMsg,'/status'))
+      {
+      var parsed = receivedMsg.split('/');
+      window.statusTable.rows[1].cells[parsed[2] - 1].innerHTML=parsed[3];
+      window.statusTable.rows[0].cells[parsed[2] - 1].innerHTML=parsed[4];
+      }
+      else
+      {
+      addStatus(receivedMsg);
+      translate(receivedMsg);
+      if(!focus)
+      newMsg = true;            
+      }
+      };
+      ws.onclose = function() {
+      // websocket was closed
+      addStatus("websocket was closed");
+      };
+      } else {
+      // browser does not support websockets
+      addStatus("sorry, your browser does not support websockets.");
+      }
+      }
+    </script>
+    
+  </head>
+  <body onload="ready();words.focus();" onfocus="focus = true; newMsg
+      = false; onFocus();"
+	onblur="focus = false; onBlur();">
+    <div id='wrapper'>
+      <div id='header_div'>
+	<h1>Imagine there's no country. <span>It isn't hard to do</span></h1>
+      </div>
+      <div id='middle_div'>
+	<div id='user_list'>
+	  <table id='statusTable'border='1'>
+	    <tr>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	      <td>empty</td>
+	    </tr>
+	    <tr>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	      <td>offline</td>
+	    </tr>
+	</div>
+	</table>
+	<div id='input'>
+	  <textarea value='' name='words' id='words' onkeydown='if (event.keyCode == 13) send();' ></textarea>
+	</div>
+	<div id="translate"></div>		
+	<div id="status"></div>
+      </div>
+
+    </div>
+
+  </body>
+
+</html>

@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <title>Sky</title>
+    <script type="text/JavaScript">
+    function StartMove() {
+	var cssBGImage=new Image();
+	cssBGImage.src="bg.jpg";
+
+	//window.cssMaxWidth=cssBGImage.width;
+	window.cssYPos=0;
+	setInterval("MoveBackGround()",20);
+    }
+
+    function MoveBackGround () {
+	window.cssYPos=window.cssYPos-10;
+	toMove=document.getElementById("scroller");
+	toMove.style.backgroundPosition="0px " +window.cssYPos+"px";
+    }
+    </script>
+    <style type="text/css">
+      #scroller {
+      background:url('bg.jpg');
+      background-repeat:repeat-y;
+      height:100%;
+      width:100%;
+      }
+      body {
+	  padding:0;
+	  margin:0;
+      }
+    </style>
+  </head>
+  <body onload='StartMove();'>
+    <div id="scroller">
+      
+    </div>
+  </body>
+</html>

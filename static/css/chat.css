@@ -1,0 +1,13 @@
+#header_div {
+    background-color: #B44343;
+    background-image: url(./static/pic/bg-top.png);
+    background-repeat: repeat-x;
+    height: 65px;
+    border-bottom: 1px solid #E9E8E8;
+}
+h1 {
+font-size: 220%;
+margin: 0 0 0 200px;
+color: white;
+font-family: 'Pacifico',arial,serif;
+}
