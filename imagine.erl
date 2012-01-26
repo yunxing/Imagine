@@ -3,7 +3,6 @@
 
 restart() ->
     stop(),
-    timer:sleep(500),
     start().
 
 stop() ->
@@ -15,9 +14,7 @@ start() ->
 			 {ws_loop, fun(Ws) -> handle_websocket(Ws) end},
 			 {ws_autoexit, false}
 			]),
-    register(queue, spawn_link(fun() -> startQueue() end)),
-    register(tableManager, spawn_link(fun() -> startTable() end)).
-
+    register(manager, spawn_link(fun() -> roomManager:start()end)).
 
 getStatus([], [], Acc) ->
     Acc;
@@ -142,15 +139,20 @@ handle('GET', [], Req) ->
 handle('GET', ["chat"], Req) ->
     {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr]),
     Args = Req:parse_qs(),
-    case proplists:get_value("user", Args) of
-	undefined -> User = "auto";
-	Value -> User = Value
+    case proplists:get_value("email", Args) of
+	undefined -> Email = "auto";
+	Email -> true
     end,
+    case proplists:get_value("sex", Args) of
+	undefined -> Sex = "auto";
+	Sex -> true
+    end,    
     erlydtl:compile("./template/chat.html", chat),
     {ok, Chat} = chat:render([
-			      {title, "Imagine-0.0.7"},
+			      {title, "Imagine-0.1.0"},
 			      {ip, inet_parse:ntoa(Addr)},
-			      {user, User}
+			      {email, Email},
+			      {sex, Sex}
 			     ]),
     Req:ok([Chat]);    
 handle(_, Other, Req) ->
@@ -199,45 +201,55 @@ updateList([T|List], Ws) ->
     updateStatus(T, Ws),
     updateList(List, Ws).
 
-waitForName(ID)->
+waitForEmailAndSex()->
     receive
 	{browser, Data} ->
-	    [_, _, Name] = re:split(Data, "/"),
-	    case binary_to_list(Name) of
-		"auto" -> ["Guest ", integer_to_list(ID)];
-		Other -> Other
-	    end;
+	    [_, _, Email, Sex] = re:split(Data, "/"),
+	    {Email, Sex};
 	Other -> io:format("wrong register ~p~n", [Other])
     end.
 
 handle_websocket(Ws) ->
-    case getID(Ws) of
-	full -> Ws:send("server is full, wait for next round!"),
-		closed;
-	ID ->
-	    Name = waitForName(ID),
-	    Who = getList(),
-	    queue ! {update, ID, Name, online},
-	    updateList(Who, Ws),
-	    handle_websocket(Ws, ID, Name)
-    end.
+    {Email, Sex} = waitForEmailAndSex(),
+    io:format("waiting for room assignment~n"),
+    {Room, welcome, {id, ID}} = remote:rpc(manager, {join, {Email, Sex}}),
+    Ws:send(["/joined/" , integer_to_list(ID)]),
+    handle_websocket(Ws, ID, Room).
 
-handle_websocket(Ws, ID, Name) ->
+handle_websocket(Ws, ID, Room) ->
     receive
 	{browser, Data} ->
 	    case re:run(Data, "^/(?<CMD>.*?)/\n?(?<ARG>.*)", [dotall, {capture, ['CMD','ARG'], list}]) of
 		{match, [CMD, ARG]}->
 		    case list_to_atom(CMD) of
 			say->
-			    queue ! {send, ARG, ID};
+			    Room ! {say, ID, ARG};
 			status ->
-			    queue ! {update, ID, Name, list_to_atom(ARG)}
+			    Room ! {update, ID, list_to_atom(ARG)}
 		    end,
-		    handle_websocket(Ws, ID, Name);
+		    handle_websocket(Ws, ID, Room);
 		nomatch->
 		    io:format("unknown command:~p~n",[Data]),
 		    closed
 	    end;
+	{say, SID, DATA} ->
+	    Ws:send(["/say/", integer_to_list(SID), "/", DATA]),
+	    handle_websocket(Ws, ID, Room);
+	{update, SID, Status} ->
+	    case Status of
+		offline->
+		    Color = "offline";
+		online ->
+		    Color = "<font color='blue'>online";
+		away ->
+		    Color = "<font color='yellow'>away"
+	    end,
+	    Ws:send(["/status/", integer_to_list(SID), "/", Color]),
+	    handle_websocket(Ws, ID, Room);
 	closed ->
-	    queue ! {delete, ID}
+	    io:format("user exited~n"),
+	    Room ! {update, ID, offline},
+	    Room ! {self(), closed, ID};
+	Other ->
+	    io:format("unknown command!~p~n", [Other])
     end.

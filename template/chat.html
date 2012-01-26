@@ -21,123 +21,203 @@
     </script>
                          
     <script type="text/JavaScript">
-      var ws;
-      var state = 0;
-      var focus = true;
-      var newMsg = false;
-      function onFocus() {ws.send("/status/online");}
-      function onBlur() {ws.send("/status/away");}      
-      function changeTitle(title) { document.title = title; }
-      function checkBlink()
-      {
-      if (state == 0)
-      {
-      changeTitle('{{title}}');
-      if (newMsg && !focus)
-      {
-      state = 1;
-      }
-      }
-      else if (state == 1)
-      {
-      state = 2;
-      if (focus)
-      state = 0;
-      else
-      changeTitle('**New Message**');
-      }
-      else if (state == 2)
-      {
-      changeTitle('{{title}}');
-      state = 1;
-      if (focus)
-      state = 0;
-      }
-      setTimeout('checkBlink();',2000);      
-      }
-      
-      function padLeft(str,lenght){ 
-      if(str.length >= lenght) 
-      return str; 
-      else 
-      return padLeft("0" +str,lenght); 
-      } 
-      function padRight(str,lenght){ 
-      if(str.length >= lenght) 
-      return str; 
-      else 
-      return padRight(str+"0",lenght); 
-      }
-      function addTranslate(text){
-      var date = new Date();
-      document.getElementById('translate').innerHTML =
-      "<font color='blue'>[" +
+    var ws;
+    var id;
+var state = 0;
+var focus = true;
+var newMsg = false;
+function onFocus() {ws.send("/status/online");}
+function onBlur() {ws.send("/status/away");}
+    function changeTitle(title) { document.title = title; }
+function checkBlink()
+{
+    if (state == 0)
+    {
+	changeTitle('{{title}}');
+	if (newMsg && !focus)
+	{
+	    state = 1;
+	}
+    }
+    else if (state == 1)
+    {
+	state = 2;
+	if (focus)
+	    state = 0;
+	else
+	    changeTitle('**New Message**');
+    }
+    else if (state == 2)
+    {
+	changeTitle('** **');
+	state = 1;
+	if (focus)
+	    state = 0;
+    }
+    setTimeout('checkBlink();',1000);      
+}
+
+function padLeft(str,lenght){ 
+    if(str.length >= lenght) 
+	return str; 
+    else 
+	return padLeft("0" +str,lenght); 
+} 
+function padRight(str,lenght){ 
+    if(str.length >= lenght) 
+	return str; 
+    else 
+	return padRight(str+"0",lenght); 
+}
+function addTranslate(text){
+    var date = new Date();
+    document.getElementById('translate').innerHTML =
+	"<font color='blue'>[" +
 	padLeft(''+date.getHours(), 2) + ':' +	
 	padLeft(''+date.getMinutes(), 2) + ':' +
 	padLeft(''+date.getSeconds(), 2) + '] </font>' + text + "<br>" + document.getElementById('translate').innerHTML;			}
-      function StartsWith(s1, s2) {
-      return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
-      }
-      
-      function addStatus(text){
-      var date = new Date();
-      document.getElementById('status').innerHTML =
-      "<font color='blue'>[" +
+function StartsWith(s1, s2) {
+    return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
+}
+
+function IDToName(ID)
+{
+    if (ID == "0")
+    {
+        ID = "Y";
+    }
+    else if (ID == "1")
+    {
+        ID = "R";
+    }
+    else if (ID == "2")
+    {
+        ID = "Z";
+    }
+    else if (ID == "3")
+    {
+        ID = "X";
+    }
+    else if (ID == "4")
+    {
+        ID = "M";
+    }
+    else if (ID == "sys")
+    {
+        ID = "System";
+    }
+    return ID;
+}
+
+function IDToColor(ID)
+{
+    var color = ""
+    if (ID == "0")
+    {
+        color = "#FFFFCC";
+    }
+    else if (ID == "1")
+    {
+        color = "#99003D";
+    }
+    else if (ID == "2")
+    {
+        color = "#006B24";
+    }
+    else if (ID == "3")
+    {
+        color = "#001A66";
+    }
+    else if (ID == "4")
+    {
+        color = "black";
+    }
+    else if (ID == "sys")
+    {
+        color = "#5A0000"
+    }
+    return color
+}
+function addStatus(text, ID){
+    var date = new Date();
+    var color = IDToColor(ID);
+
+    
+    document.getElementById('status').innerHTML =
+	"<font color='blue'>[" +
 	padLeft(''+date.getHours(), 2) + ':' +	
 	padLeft(''+date.getMinutes(), 2) + ':' +
-	padLeft(''+date.getSeconds(), 2) + '] </font>' + text + "<br>" + document.getElementById('status').innerHTML;			}
-      function StartsWith(s1, s2) {
-      return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
-      }
-      function send(){
-      if (document.getElementById('words').value != ''){
-      ws.send("/say/" + document.getElementById('words').value);
-      document.getElementById('words').value = '';
-      }  
-      }
-      function ready(){
-      newMsg=false;
-      focus=true;
-      if ("WebSocket" in window) {
-      ws = new WebSocket("ws://{{ ip }}:8080/service");
-      } else if ("MozWebSocket" in window) {
-      ws = new MozWebSocket("ws://{{ ip }}:8080/service");
-      }
-      if (ws) {
-      setTimeout('checkBlink();',2000);
-      // browser supports websockets
-      ws.onopen = function() {
-      // websocket is connected
-      addStatus("websocket connected!");
-      // send hello data to server.
-      ws.send('/register/{{user}}');
-      addStatus("sent message to server: 'hello server'!");
-      };
-      ws.onmessage = function (evt) {
-      var receivedMsg = evt.data;
-      if(StartsWith(receivedMsg,'/status'))
-      {
-      var parsed = receivedMsg.split('/');
-      window.statusTable.rows[1].cells[parsed[2] - 1].innerHTML=parsed[3];
-      window.statusTable.rows[0].cells[parsed[2] - 1].innerHTML=parsed[4];
-      }
-      else
-      {
-      addStatus(receivedMsg);
-      translate(receivedMsg);
-      if(!focus)
-      newMsg = true;            
-      }
-      };
-      ws.onclose = function() {
-      // websocket was closed
-      addStatus("websocket was closed");
-      };
-      } else {
-      // browser does not support websockets
-      addStatus("sorry, your browser does not support websockets.");
-      }
-      }
+	padLeft(''+date.getSeconds(), 2) + '] </font>'  + "<font color = '" + color + "'>"+ IDToName(ID) + ":" + text
+	+ "</font><br>" + document.getElementById('status').innerHTML;
+}
+function StartsWith(s1, s2) {
+    return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
+}
+function send(){
+    if (document.getElementById('words').value != ''){
+	ws.send("/say/" + document.getElementById('words').value);
+	document.getElementById('words').value = '';
+    }  
+}
+function ready(){
+    newMsg=false;
+    focus=true;
+    if ("WebSocket" in window) {
+	ws = new WebSocket("ws://{{ ip }}:8080/service");
+    } else if ("MozWebSocket" in window) {
+	ws = new MozWebSocket("ws://{{ ip }}:8080/service");
+    }
+    if (ws) {
+	setTimeout('checkBlink();',2000);
+	// browser supports websockets
+	ws.onopen = function() {
+	    // websocket is connected
+	    addStatus("websocket connected!", "sys");
+	    // send hello data to server.
+	    ws.send('/register/{{ email }}/{{sex}}');
+	};
+	ws.onmessage = function (evt) {
+	    var receivedMsg = evt.data;
+	    if(StartsWith(receivedMsg,'/status'))
+	    {
+		var parsed = receivedMsg.split('/');
+		window.statusTable.rows[1].cells[parsed[2]].innerHTML=parsed[3];
+                if (parsed[3] == "<font color='blue'>online" || parsed[3] == "<font color='yellow'>away")
+	        {
+                    window.statusTable.rows[0].cells[parsed[2]].innerHTML="<font color='" + IDToColor(parsed[2]) + "'>" + IDToName(parsed[2]);
+	            if(parsed[2] == id)
+	                window.statusTable.rows[0].cells[id].innerHTML=
+	                window.statusTable.rows[0].cells[id].innerHTML
+				    +  "(you)";
+	        }
+                if (parsed[3] == "offline")
+	        {
+	            window.statusTable.rows[0].cells[parsed[2]].innerHTML="empty";
+	        }
+	    }
+	    else if(StartsWith(receivedMsg,'/say'))
+	    {
+		var parsed = receivedMsg.split('/');
+                addStatus(parsed[3], parsed[2]);
+		translate(receivedMsg);
+		if(!focus)
+		    newMsg = true;            
+	    }
+    	    else if(StartsWith(receivedMsg,'/joined'))
+	    {
+		var parsed = receivedMsg.split('/');    
+		id = parsed[2];
+	    }
+	};
+	ws.onclose = function() {
+	    // websocket was closed
+	    addStatus("websocket was closed", "sys");
+	};
+    } else {
+	// browser does not support websockets
+	addStatus("sorry, your browser does not support websockets.", "sys");
+    }
+}
     </script>
     
   </head>
@@ -157,14 +237,8 @@
 	      <td>empty</td>
 	      <td>empty</td>
 	      <td>empty</td>
-	      <td>empty</td>
-	      <td>empty</td>
-	      <td>empty</td>
 	    </tr>
 	    <tr>
-	      <td>offline</td>
-	      <td>offline</td>
-	      <td>offline</td>
 	      <td>offline</td>
 	      <td>offline</td>
 	      <td>offline</td>
