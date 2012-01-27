@@ -23,11 +23,11 @@
     <script type="text/JavaScript">
     var ws;
     var id;
-var state = 0;
-var focus = true;
-var newMsg = false;
-function onFocus() {ws.send("/status/online");}
-function onBlur() {ws.send("/status/away");}
+    var state = 0;
+    var focus = true;
+    var newMsg = false;
+    function onFocus() {ws.send("/status/online");}
+    function onBlur() {ws.send("/status/away");}
     function changeTitle(title) { document.title = title; }
 function checkBlink()
 {
@@ -54,7 +54,7 @@ function checkBlink()
 	if (focus)
 	    state = 0;
     }
-    setTimeout('checkBlink();',1000);      
+    setTimeout('checkBlink();',1000);
 }
 
 function padLeft(str,lenght){ 
@@ -70,6 +70,7 @@ function padRight(str,lenght){
 	return padRight(str+"0",lenght); 
 }
 function addTranslate(text){
+    return;
     var date = new Date();
     document.getElementById('translate').innerHTML =
 	"<font color='blue'>[" +
@@ -80,32 +81,78 @@ function StartsWith(s1, s2) {
     return (s1.length >= s2.length && s1.substr(0, s2.length) == s2);
 }
 
+function GetRadioValue(RadioName){
+    var obj;    
+    obj=document.getElementsByName(RadioName);
+    if(obj!=null){
+        var i;
+        for(i=0;i<obj.length;i++){
+            if(obj[i].checked){
+                return obj[i].value;            
+            }
+        }
+    }
+    return null;
+}
+function select()
+    {
+        v = GetRadioValue('sel');
+	ws.send("/choice/" + NameToID(v));
+    }
+    
+var timeLeft;
+function tick()
+    {
+       if (timeLeft == 0)
+       {
+           select();
+           return;
+       }
+       timeLeft = timeLeft - 1;
+       document.getElementById('counter').innerHTML = timeLeft;
+       setTimeout('tick();',1000);
+    }
+		    
+function chatStart()
+    {
+       timeLeft = 21;
+       sel = document.getElementById('select');
+       sel.style.visibility = "visible";       
+       setTimeout('tick();',1000);
+    }
+
+function NameToID(Name)
+{
+    var ID;
+    if (Name == "Y")
+        ID = "0";
+    else if (Name == "R")
+        ID = "1";
+    else if (Name == "Z")
+        ID = "2";
+    else if (Name == "X")
+        ID = "3";
+    else if (Name == "M")
+        ID = "4";
+    else if (Name == "System")
+        ID = "Sys";
+    return ID;
+}
+		    
 function IDToName(ID)
 {
     if (ID == "0")
-    {
         ID = "Y";
-    }
     else if (ID == "1")
-    {
         ID = "R";
-    }
     else if (ID == "2")
-    {
         ID = "Z";
-    }
     else if (ID == "3")
-    {
         ID = "X";
-    }
     else if (ID == "4")
-    {
         ID = "M";
-    }
     else if (ID == "sys")
-    {
         ID = "System";
-    }
     return ID;
 }
 
@@ -114,7 +161,7 @@ function IDToColor(ID)
     var color = ""
     if (ID == "0")
     {
-        color = "#FFFFCC";
+        color = "#777700";
     }
     else if (ID == "1")
     {
@@ -208,6 +255,20 @@ function ready(){
 		var parsed = receivedMsg.split('/');    
 		id = parsed[2];
 	    }
+	    else if(StartsWith(receivedMsg,'/event'))
+	    {
+		var parsed = receivedMsg.split('/');    
+		var event = parsed[2];
+	        if (event == "started")
+	        {
+	           chatStart();
+	        }
+	        if (event == "paired")
+	        {
+                   addStatus("Congra! "+IDToName(parsed[3]) + " and " + IDToName(parsed[4]) +
+	" are now paired", "sys");	           
+	        }
+	    }
 	};
 	ws.onclose = function() {
 	    // websocket was closed
@@ -222,15 +283,16 @@ function ready(){
     
   </head>
   <body onload="ready();words.focus();" onfocus="focus = true; newMsg
-      = false; onFocus();"
+      = false; onFocus();state = 0; checkBlink();"
 	onblur="focus = false; onBlur();">
     <div id='wrapper'>
       <div id='header_div'>
-	<h1>Imagine there's no country. <span>It isn't hard to do</span></h1>
+	<h1>Imagine there's no country. <span>It isn't hard to
+	do</span></h1>
       </div>
       <div id='middle_div'>
 	<div id='user_list'>
-	  <table id='statusTable'border='1'>
+	  <table id='statusTable' border='1'>
 	    <tr>
 	      <td>empty</td>
 	      <td>empty</td>
@@ -245,12 +307,34 @@ function ready(){
 	      <td>offline</td>
 	      <td>offline</td>
 	    </tr>
+	  </table>
+	  <div id='select'>
+	    <table id='selectionTable' border='1'>
+	      <tr>
+		<td><input type="radio" name="sel" value="Y"
+			   >Y</input></td>
+		<td><input type="radio" name="sel" value="R"
+			   >R</input></td>
+		<td><input type="radio" name="sel" value="Z"
+			   >Z</input></td>
+		<td><input type="radio" name="sel" value="X"
+			   >X</input></td>
+		<td><input type="radio" name="sel" value="M"
+			   >M</input></td>
+		<td><input type="radio" name="sel" value="None"
+			   >None</input></td>	      		
+	      </tr>
+	    </table>
+	    <---select the one you like to chat.
+	  </div>
+	  <div id='counter'>Waiting for others</div>
+	  
+	  <div id='input'>
+	    <textarea value='' name='words' id='words' onkeydown='if (event.keyCode == 13) send();' ></textarea>
+	  </div>	  
 	</div>
-	</table>
-	<div id='input'>
-	  <textarea value='' name='words' id='words' onkeydown='if (event.keyCode == 13) send();' ></textarea>
-	</div>
-	<div id="translate"></div>		
+
+	 <!-- <div id="translate"></div> -->
 	<div id="status"></div>
       </div>
 

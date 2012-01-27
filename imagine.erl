@@ -149,7 +149,7 @@ handle('GET', ["chat"], Req) ->
     end,    
     erlydtl:compile("./template/chat.html", chat),
     {ok, Chat} = chat:render([
-			      {title, "Imagine-0.1.0"},
+			      {title, "Imagine-0.1.1"},
 			      {ip, inet_parse:ntoa(Addr)},
 			      {email, Email},
 			      {sex, Sex}
@@ -225,7 +225,9 @@ handle_websocket(Ws, ID, Room) ->
 			say->
 			    Room ! {say, ID, ARG};
 			status ->
-			    Room ! {update, ID, list_to_atom(ARG)}
+			    Room ! {update, ID, list_to_atom(ARG)};
+			choice ->
+			    Room ! {choice, ID, list_to_integer(ARG)}
 		    end,
 		    handle_websocket(Ws, ID, Room);
 		nomatch->
@@ -235,6 +237,28 @@ handle_websocket(Ws, ID, Room) ->
 	{say, SID, DATA} ->
 	    Ws:send(["/say/", integer_to_list(SID), "/", DATA]),
 	    handle_websocket(Ws, ID, Room);
+	{system, CMD, ARG} ->
+	    case CMD of
+		started->
+		    Ws:send(["/say/",
+			     "sys",
+			     "/",
+			     "The door has closed! Let's chat!"]),
+		    Ws:send(["/event/",
+			     "started"
+			     ]);
+		pair->
+		    {A, B} = ARG,
+		    Ws:send(["/event/",
+			    "paired/",
+			    integer_to_list(A),
+			    "/",
+			    integer_to_list(B)]
+			   );
+		Other ->
+		    io:format("Unknown system command~p~n", [Other])
+	    end,
+	    handle_websocket(Ws, ID, Room);	    
 	{update, SID, Status} ->
 	    case Status of
 		offline->
@@ -248,7 +272,7 @@ handle_websocket(Ws, ID, Room) ->
 	    handle_websocket(Ws, ID, Room);
 	closed ->
 	    io:format("user exited~n"),
-	    Room ! {update, ID, offline},
+	    Room ! {update, ID, offline}, 
 	    Room ! {self(), closed, ID};
 	Other ->
 	    io:format("unknown command!~p~n", [Other])
