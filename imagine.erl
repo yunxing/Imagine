@@ -9,7 +9,7 @@ stop() ->
     misultin:stop().
 
 start() ->
-    misultin:start_link([{port, 8080},
+    misultin:start_link([{port, 80},
 			 {loop, fun(Req) -> handle_http(Req) end},
 			 {ws_loop, fun(Ws) -> handle_websocket(Ws) end},
 			 {ws_autoexit, false}
@@ -149,7 +149,7 @@ handle('GET', ["chat"], Req) ->
     end,    
     erlydtl:compile("./template/chat.html", chat),
     {ok, Chat} = chat:render([
-			      {title, "Imagine-0.1.1"},
+			      {title, "Imagine-0.1.2"},
 			      {ip, inet_parse:ntoa(Addr)},
 			      {email, Email},
 			      {sex, Sex}
@@ -245,20 +245,56 @@ handle_websocket(Ws, ID, Room) ->
 			     "/",
 			     "The door has closed! Let's chat!"]),
 		    Ws:send(["/event/",
-			     "started"
-			     ]);
+			     "started/",
+			     integer_to_list(ARG)
+			     ]),
+		    handle_websocket(Ws, ID, Room);	    
 		pair->
-		    {A, B} = ARG,
+		    {{A, EmailA, SexA}, {B, EmailB, SexB}} = ARG,
+		    if
+			A == ID ->
+			    Ws:send(["/event/",
+				     "info/",
+				     integer_to_list(B),
+				     "/",
+				     EmailB,
+				     "/",
+				     SexB]
+				   );
+			B == ID ->
+			    Ws:send(["/event/",
+				     "info/",
+				     integer_to_list(A),
+				     "/",
+				     EmailA,
+				     "/",
+				     SexA]
+				   );
+			true -> true
+		    end,
 		    Ws:send(["/event/",
 			    "paired/",
 			    integer_to_list(A),
 			    "/",
 			    integer_to_list(B)]
+			   ),
+		    handle_websocket(Ws, ID, Room);	    		
+		endSel->
+		    Ws:send(["/event/",
+			    "end"
+			     ]
+			   ),
+		    case ARG of
+			false ->
+			    Ws:send(["/say/",
+				     "sys/",
+				     "no pair matched, what a pity!"
+				    ]
 			   );
-		Other ->
-		    io:format("Unknown system command~p~n", [Other])
-	    end,
-	    handle_websocket(Ws, ID, Room);	    
+			true -> ok
+		    end;
+		Other -> handle_websocket(Ws, ID, Room)
+	    end;
 	{update, SID, Status} ->
 	    case Status of
 		offline->

@@ -97,7 +97,8 @@ function GetRadioValue(RadioName){
 function select()
     {
         v = GetRadioValue('sel');
-	ws.send("/choice/" + NameToID(v));
+	if (v != null && v != "None")
+		    ws.send("/choice/" + NameToID(v));
     }
     
 var timeLeft;
@@ -113,9 +114,9 @@ function tick()
        setTimeout('tick();',1000);
     }
 		    
-function chatStart()
+function chatStart(Total)
     {
-       timeLeft = 21;
+       timeLeft = Total;
        sel = document.getElementById('select');
        sel.style.visibility = "visible";       
        setTimeout('tick();',1000);
@@ -210,9 +211,9 @@ function ready(){
     newMsg=false;
     focus=true;
     if ("WebSocket" in window) {
-	ws = new WebSocket("ws://{{ ip }}:8080/service");
+	ws = new WebSocket("ws://{{ ip }}:80/service");
     } else if ("MozWebSocket" in window) {
-	ws = new MozWebSocket("ws://{{ ip }}:8080/service");
+	ws = new MozWebSocket("ws://{{ ip }}:80/service");
     }
     if (ws) {
 	setTimeout('checkBlink();',2000);
@@ -261,12 +262,27 @@ function ready(){
 		var event = parsed[2];
 	        if (event == "started")
 	        {
-	           chatStart();
+	           chatStart(parseInt(parsed[3]));
 	        }
 	        if (event == "paired")
 	        {
                    addStatus("Congra! "+IDToName(parsed[3]) + " and " + IDToName(parsed[4]) +
 	" are now paired", "sys");	           
+	        }
+	        if (event == "info")
+	        {
+	           addStatus(IDToName(parsed[3]) +"(" + parsed[5] + ") has chosen you!" + " Email:" + parsed[4], "sys");
+	        }
+	        if (event == "end")
+	        {
+	           var obj;
+	           addStatus("propose end!", "sys");
+		       obj = document.getElementById('select');
+		       obj.style.visibility = "hidden";
+		       obj = document.getElementById('statusTable');
+		       obj.style.visibility = "hidden";
+		       obj = document.getElementById('counter');
+		       obj.style.visibility = "hidden";       	      
 	        }
 	    }
 	};

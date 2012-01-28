@@ -4,7 +4,7 @@
 start()->
     Tab = ets:new(table, [set]),
     initializeTable(Tab, 0),
-    loop([], Tab, lists:seq(0,4), []).
+    loop([], Tab, lists:seq(0,4)).
 
 initializeTable(_Tab, 5) -> ok;
 initializeTable(Tab, N) ->
@@ -28,44 +28,44 @@ notifyAll([T|Q], CMD, ARG)->
     T ! {system, CMD, ARG},
     notifyAll(Q, CMD, ARG).
 
-loop(Q, Tab, E, P)->
+loop(Q, Tab, E)->
     receive
 	{Pid, {join, Waiter, Email, Sex}}->
 	    case E of
 		[] ->
 		    Pid!{fail, full},
-		    loop(Q, Tab, E, P);
+		    loop(Q, Tab, E);
 		[T|R] ->
 		    Waiter ! {self(), welcome, {id, T}},
 		    ets:insert(Tab, {T, Email, Sex, online}),
 		    initializeWaiter(Waiter, 0, Tab),
-		    sendAll([Waiter|Q], T, online, update),		    
+		    sendAll([Waiter|Q], T, online, update),
 		    Pid!ok,
 		    if
 			length(Q) == 4 ->
 			    Pid!{self(), detach},
-			    notifyAll([Waiter|Q], started, []);
+			    Total = 1 * 20,
+			    timer:send_after(Total * 1000,
+				       self(),
+				       {timeup}),
+			    notifyAll([Waiter|Q], started, Total);
 			true -> true
-		    end,		    
-		    loop([Waiter|Q], Tab, R, P)
+		    end,
+		    loop([Waiter|Q], Tab, R)
 	    end;
 	{say, ID, DATA} ->
 	    sendAll(Q, ID, DATA, say),
-	    loop(Q, Tab, E, P);
+	    loop(Q, Tab, E);
+	{timeup} ->
+	    io:format("time up~n"),
+	    Total = 1 * 4 * 1000,
+	    timer:send_after(Total, self(), {timeup}),
+	    selLoop(Q, Tab, E, [], false);
 	{update, ID, Status}->
 	    [{_, Email, Sex, _}] = ets:lookup(Tab, ID),
 	    ets:insert(Tab, {ID, Email, Sex, Status}),
 	    sendAll(Q, ID, Status, update),
-	    loop(Q, Tab, E, P);
-	{choice, ID, ARG}->
-	    case lists:member({ARG, ID}, P) of
-		true->
-		    notifyAll(Q, pair, {ARG, ID}),
-		    NewP = lists:delete({ARG, ID}, P),
-		    loop(Q, Tab, E, NewP);
-		false ->
-		    loop(Q, Tab, E, [{ID, ARG}|P])
-	    end;
+	    loop(Q, Tab, E);
 	{Pid, closed, ID} ->
 	    NewQ = lists:delete(Pid, Q),
 	    case length(NewQ) of
@@ -74,7 +74,30 @@ loop(Q, Tab, E, P)->
 		    io:format("Room deleted~n"),
 		    closed;
 		_N ->
-		    loop(NewQ, Tab, [ID | E], P)
+		    loop(NewQ, Tab, [ID | E])
 	    end
     end.
 
+selLoop(Q, Tab, E, P, T)->
+    receive
+	{timeup} ->
+	    notifyAll(Q, endSel, T),
+	    closed;
+	{choice, ID, ARG}->
+	    case lists:member({ARG, ID}, P) of
+		true ->
+		    [{ARG, EmailARG, SexARG, _}]=
+			ets:lookup(Tab, ARG),
+		    [{ID, EmailID, SexID, _}]=
+			ets:lookup(Tab, ID),		    
+		    notifyAll(Q, pair,
+			      {{ARG, EmailARG, SexARG},
+			       {ID, EmailID, SexID}}),
+		    NewP = lists:delete({ARG, ID}, P),
+
+		    selLoop(Q, Tab, E, NewP, true);
+		false ->
+		    notifyAll(Q, closed, {}),
+		    selLoop(Q, Tab, E, [{ID, ARG}|P], T)
+	    end
+    end.
