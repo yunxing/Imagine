@@ -104,22 +104,45 @@ function select()
 var timeLeft;
 function tick()
     {
+		    
        if (timeLeft == 0)
        {
            select();
            return;
        }
        timeLeft = timeLeft - 1;
-       document.getElementById('counter').innerHTML = timeLeft;
+       if (timeLeft % 2 == 0)
+           promt = " <-";
+       else
+           promt = " <--";
+       if (timeLeft < 10)
+           promt = "<font color = 'red'>" + promt;
+		      
+       if (timeLeft < 30)
+       {
+		      sel = document.getElementById('select');
+		      sel.style.visibility = "visible";
+		      document.getElementById('counter').innerHTML =
+		      "<font color = 'red'>" + timeLeft;
+		      var promt;
+
+		      document.getElementById('alarm').innerHTML =
+		      promt + "select the one"
+       }
+       else
+       {
+		      document.getElementById('counter').innerHTML =
+		      timeLeft;
+       }
        setTimeout('tick();',1000);
     }
 		    
 function chatStart(Total)
     {
        timeLeft = Total;
-       sel = document.getElementById('select');
-       sel.style.visibility = "visible";       
        setTimeout('tick();',1000);
+//       if (!focus)
+//           alert('The chat has began!');		      
     }
 
 function NameToID(Name)
@@ -215,6 +238,11 @@ function ready(){
     } else if ("MozWebSocket" in window) {
 	ws = new MozWebSocket("ws://{{ ip }}:80/service");
     }
+    else
+    {
+	addStatus("your browser doesn't support websocket!", "sys");
+    }
+
     if (ws) {
 	setTimeout('checkBlink();',2000);
 	// browser supports websockets
@@ -266,12 +294,16 @@ function ready(){
 	        }
 	        if (event == "paired")
 	        {
-                   addStatus("Congra! "+IDToName(parsed[3]) + " and " + IDToName(parsed[4]) +
+                   addStatus("<font color='blue'>Congra! "+IDToName(parsed[3]) + " and " + IDToName(parsed[4]) +
 	" are now paired", "sys");	           
 	        }
 	        if (event == "info")
 	        {
-	           addStatus(IDToName(parsed[3]) +"(" + parsed[5] + ") has chosen you!" + " Email:" + parsed[4], "sys");
+	           addStatus("<font color='blue'>"+ IDToName(parsed[3])
+                      +"(" + parsed[5]
+		      + ") has chosen you!" +
+		      "Email:<a href='mailto:" + parsed[4] + "'>"+
+	              parsed[4] + "</a>" , "sys");
 	        }
 	        if (event == "end")
 	        {
@@ -282,7 +314,9 @@ function ready(){
 		       obj = document.getElementById('statusTable');
 		       obj.style.visibility = "hidden";
 		       obj = document.getElementById('counter');
-		       obj.style.visibility = "hidden";       	      
+		       obj.style.visibility = "hidden";
+		       obj = document.getElementById('words');
+		       obj.style.visibility = "hidden";       	
 	        }
 	    }
 	};
@@ -341,7 +375,8 @@ function ready(){
 			   >None</input></td>	      		
 	      </tr>
 	    </table>
-	    <---select the one you like to chat.
+	    
+	    <span id='alarm'><--select the one you'd like to chat.</span>
 	  </div>
 	  <div id='counter'>Waiting for others</div>
 	  

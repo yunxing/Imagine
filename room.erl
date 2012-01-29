@@ -44,7 +44,7 @@ loop(Q, Tab, E)->
 		    if
 			length(Q) == 4 ->
 			    Pid!{self(), detach},
-			    Total = 1 * 20,
+			    Total = 1 * 10,
 			    timer:send_after(Total * 1000,
 				       self(),
 				       {timeup}),
@@ -58,7 +58,7 @@ loop(Q, Tab, E)->
 	    loop(Q, Tab, E);
 	{timeup} ->
 	    io:format("time up~n"),
-	    Total = 1 * 4 * 1000,
+	    Total = 1 * 2 * 1000,
 	    timer:send_after(Total, self(), {timeup}),
 	    selLoop(Q, Tab, E, [], false);
 	{update, ID, Status}->
@@ -89,7 +89,8 @@ selLoop(Q, Tab, E, P, T)->
 		    [{ARG, EmailARG, SexARG, _}]=
 			ets:lookup(Tab, ARG),
 		    [{ID, EmailID, SexID, _}]=
-			ets:lookup(Tab, ID),		    
+			ets:lookup(Tab, ID),
+		    mail ! {sendmail, EmailARG, SexARG, EmailID, SexID},
 		    notifyAll(Q, pair,
 			      {{ARG, EmailARG, SexARG},
 			       {ID, EmailID, SexID}}),

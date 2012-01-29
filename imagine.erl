@@ -14,119 +14,8 @@ start() ->
 			 {ws_loop, fun(Ws) -> handle_websocket(Ws) end},
 			 {ws_autoexit, false}
 			]),
-    register(manager, spawn_link(fun() -> roomManager:start()end)).
-
-getStatus([], [], Acc) ->
-    Acc;
-getStatus([], [T|E], Acc) ->
-    getStatus([], E, [{T, "offline"}|Acc]);
-getStatus([{T, _W}|Q], E, Acc) ->
-    getStatus(Q, E, [{T, "<font color='blue'>online"}|Acc]).
-
-startTable()->
-    Tab = ets:new(table, [set]),
-    tloop(Tab),
-    ets:delete(Tab).
-
-rpc(Process, Req)->
-    Process ! {self(),Req},
-    receive
-	R -> R
-    end.
-
-tloop(Tab)->
-    receive
-	{Pid, {insert, ID, Name, Status}} ->
-	    Pid ! ets:insert(Tab, {ID, Name, Status}),
-	    tloop(Tab);
-	{Pid, {lookup, ID}} ->
-	    Pid ! ets:lookup(Tab, ID),
-	    tloop(Tab);
-	{Pid, {del, ID}} ->
-	    Pid ! ets:delete(Tab, ID),
-	    tloop(Tab);
-	{close} ->
-	    closed
-    end.
-
-
-startQueue()->
-    loop([], lists:seq(1,8)).
-
-
-loop(Q, E) ->
-    receive
-	{Pid, who} ->
-	    S = getStatus(Q, E, []),
-	    Pid ! {ok, S},
-	    loop(Q, E);
-	{Pid, add, Ws} ->
-	    case E of
-		[] -> Pid ! full,
-		      loop(Q, E);
-		_  ->
-		    {NewQ, NewE} = add(Q, E, Ws),
-		    [{T, _W}|_] = NewQ,
-		    Pid ! {ok, T},
-		    loop(NewQ, NewE)
-	    end;
-	{update, ID, Name, Status}->
-	    case Status of
-		online->
-		    R = rpc(tableManager, {lookup, ID}),
-		    rpc(tableManager, {insert, ID, Name, online}),
-		    sendAll(["/status/", integer_to_list(ID), "/", "<font color='blue'>online", "/", Name], Q),
-		    case R of
-			[] -> 
-			    sendAll(["<font size='3' color='blue'> ",
-				     Name,
-				     " has joined the server</font>"],
-				    Q);
-			_ -> true
-		    end;
-		away->
-		    rpc(tableManager, {insert, ID, Name, away}),
-		    sendAll(["/status/", integer_to_list(ID), "/", "<font color='yellow'>away", "/", Name], Q)
-	    end,
-	    loop(Q, E);
-	{delete, Num} ->
-	    {NewQ, NewE} = del(Q, E, Num),
-	    [{_,Name, _}] = rpc(tableManager, {lookup, Num}),
-	    rpc(tableManager, {del, Num}),
-	    sendAll(["/status/", integer_to_list(Num), "/", "offline", "/", "empty"], NewQ),	    
-	    sendAll(["<font size='3' color='blue'> ",
-		     Name,
-		     " has left the server</font>"],
-		    NewQ),
-	    loop(NewQ, NewE);
-	{send, Msg, Num} ->
-	    [{_,R, _}] = rpc(tableManager, {lookup, Num}),
-	    sendAll([R,
-		     " : ", Msg],
-		    Q),
-	    loop(Q, E);
-	Command ->
-	    io:format("unknown command:~p~n", [Command])
-    end.
-
-sendAll(_, []) -> true;
-sendAll(Msg, [{_T, W}|Q]) ->
-    W:send([Msg]),
-    sendAll(Msg, Q).
-
-del(Q, E, Num) ->
-    del(Q, E, Num, []).
-
-del([], E, _, Acc) -> {Acc, E};
-del([{T, W}|Q], E, Num, Acc) ->
-    case T of
-	Num -> del(Q, [Num|E], Num, Acc);
-	_ -> del(Q, E, Num, [{T, W}|Acc])
-    end.
-
-add(Q, [T|E], Ws) ->
-    {[{T, Ws}|Q], E}.
-
+    register(manager, spawn_link(fun() -> roomManager:start()end)),
+    register(mail, spawn_link(fun() -> gmail:start()end)).
 
 handle_http(Req) ->
     handle(Req:get(method), Req:resource([lowercase, urldecode]), Req).
@@ -149,7 +38,7 @@ handle('GET', ["chat"], Req) ->
     end,    
     erlydtl:compile("./template/chat.html", chat),
     {ok, Chat} = chat:render([
-			      {title, "Imagine-0.1.2"},
+			      {title, "Imagine-0.1.3"},
 			      {ip, inet_parse:ntoa(Addr)},
 			      {email, Email},
 			      {sex, Sex}
@@ -167,39 +56,6 @@ handle(_, Other, Req) ->
 		    Req:ok([{"Content-Type", "text/plain"}], "Page not found.")
 	    end
     end.
-
-getID(Ws) ->
-    queue ! {self(), add, Ws},
-    receive
-	{ok,ID} ->
-	    ID;
-	full -> full
-    end.
-
-getList() ->
-    queue ! {self(), who},
-    receive
-	{ok, L} -> L
-    end.
-
-updateStatus({Who, Status}, Ws)->
-    case rpc(tableManager, {lookup, Who}) of
-	[{_, R, S}] ->
-	    case S of
-		away->
-		    Ws:send(["/status/", integer_to_list(Who), "/<font color='yellow'>away", "/", R]);
-		online->
-		    Ws:send(["/status/", integer_to_list(Who), "/<font color='blue'>online", "/", R])
-	    end;
-	_ -> Ws:send(["/status/", integer_to_list(Who), "/", Status, "/", "empty"])
-    end.
-
-
-updateList([], _Ws)->
-    ok;
-updateList([T|List], Ws) ->
-    updateStatus(T, Ws),
-    updateList(List, Ws).
 
 waitForEmailAndSex()->
     receive
@@ -293,7 +149,7 @@ handle_websocket(Ws, ID, Room) ->
 			   );
 			true -> ok
 		    end;
-		Other -> handle_websocket(Ws, ID, Room)
+		_ -> handle_websocket(Ws, ID, Room)
 	    end;
 	{update, SID, Status} ->
 	    case Status of
