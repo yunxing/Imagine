@@ -1,6 +1,7 @@
 -module(room).
 -export([start/0]).
 
+
 start()->
     Tab = ets:new(table, [set]),
     initializeTable(Tab, 0),
@@ -28,6 +29,13 @@ notifyAll([T|Q], CMD, ARG)->
     T ! {system, CMD, ARG},
     notifyAll(Q, CMD, ARG).
 
+-record(sel_state,  
+  {pids=[],  
+  table = "",  
+  pairs=[],
+  success= false
+  }).
+
 loop(Q, Tab, E)->
     receive
 	{Pid, {join, Waiter, Email, Sex}}->
@@ -44,7 +52,7 @@ loop(Q, Tab, E)->
 		    if
 			length(Q) == 4 ->
 			    Pid!{self(), detach},
-			    Total = 1 * 10,
+			    Total = 1 * 60 * 1,
 			    timer:send_after(Total * 1000,
 				       self(),
 				       {timeup}),
@@ -58,9 +66,9 @@ loop(Q, Tab, E)->
 	    loop(Q, Tab, E);
 	{timeup} ->
 	    io:format("time up~n"),
-	    Total = 1 * 2 * 1000,
+	    Total = 1 * 4 * 1000,
 	    timer:send_after(Total, self(), {timeup}),
-	    selLoop(Q, Tab, E, [], false);
+	    selLoop(#sel_state{pids=Q, table=Tab});
 	{update, ID, Status}->
 	    [{_, Email, Sex, _}] = ets:lookup(Tab, ID),
 	    ets:insert(Tab, {ID, Email, Sex, Status}),
@@ -78,27 +86,34 @@ loop(Q, Tab, E)->
 	    end
     end.
 
-selLoop(Q, Tab, E, P, T)->
+
+
+selLoop(#sel_state{pids = PIDs,
+			 table = Tab,
+			 pairs = Pair,
+			 success=Success} = State)->
     receive
 	{timeup} ->
-	    notifyAll(Q, endSel, T),
+	    notifyAll(PIDs,
+		      endSel,
+		      Success),
 	    closed;
 	{choice, ID, ARG}->
-	    case lists:member({ARG, ID}, P) of
+	    case lists:member({ARG, ID}, Pair) of
 		true ->
 		    [{ARG, EmailARG, SexARG, _}]=
 			ets:lookup(Tab, ARG),
 		    [{ID, EmailID, SexID, _}]=
 			ets:lookup(Tab, ID),
 		    mail ! {sendmail, EmailARG, SexARG, EmailID, SexID},
-		    notifyAll(Q, pair,
+		    notifyAll(PIDs, pair,
 			      {{ARG, EmailARG, SexARG},
 			       {ID, EmailID, SexID}}),
-		    NewP = lists:delete({ARG, ID}, P),
-
-		    selLoop(Q, Tab, E, NewP, true);
+		    NewP = lists:delete({ARG, ID}, Pair),
+		    selLoop(State#sel_state{pairs= NewP,
+						 success=true});
 		false ->
-		    notifyAll(Q, closed, {}),
-		    selLoop(Q, Tab, E, [{ID, ARG}|P], T)
+		    notifyAll(PIDs, closed, {}),
+		    selLoop(State#sel_state{pairs=[{ID, ARG}|Pair]})
 	    end
     end.
