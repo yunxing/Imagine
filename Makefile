@@ -5,7 +5,7 @@
 
 ERL = erl -pa '~/imagine/'
 
-MODS = imagine room roomManager
+MODS = imagine room roomManager gmail
 
 all: compile
 	${ERL} -s imagine start
