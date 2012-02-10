@@ -1,6 +1,6 @@
 -module(imagine).
 -export([restart/0, start/0, stop/0]).
-
+-define(LOCATION, local).
 restart() ->
     stop(),
     start().
@@ -26,7 +26,14 @@ handle('GET', [], Req) ->
     {ok, Index} = index:render([]),
     Req:ok(Index);
 handle('GET', ["chat"], Req) ->
-    {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr]),
+    case ?LOCATION of
+	local ->
+	    {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr]);
+	remote ->
+	    Addr = {107,22,101,221};
+	_UNDEFINED ->
+	    {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr])
+    end,
     Args = Req:parse_qs(),
     case proplists:get_value("email", Args) of
 	undefined -> Email = "auto";

@@ -1,7 +1,7 @@
 .SUFFIXES: .erl .beam
 
 .erl.beam:
-	erlc -W $<
+	  erlc -DPos=local -W $<
 
 ERL = erl -pa '~/imagine/'
 
