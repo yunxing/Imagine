@@ -1,5 +1,5 @@
 -module(imagine).
--export([restart/0, start/0, stop/0]).
+-export([restart/0, start/0, stop/0, handle_http/1, handle_websocket/1]).
 -define(LOCATION, local).
 restart() ->
     stop(),

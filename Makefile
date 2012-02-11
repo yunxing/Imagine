@@ -5,10 +5,9 @@
 
 ERL = erl -pa '~/imagine/'
 
-MODS = imagine room roomManager gmail
+MODS = imagine room roomManager gmail imagine_sup imagine_app utility_server
 
 all: compile
-	${ERL} -s imagine start
 
 compile: ${MODS:%=%.beam}
 

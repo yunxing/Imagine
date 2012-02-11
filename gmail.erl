@@ -1,7 +1,9 @@
 -module(gmail).
 -export([start/0, sendMail/4]).
 
+
 start() ->
+    io:format("gmail sender at your service~n"),
     ssl:start(),
     loop().
 

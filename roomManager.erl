@@ -2,6 +2,7 @@
 -export([start/0]).
 
 start()->
+    io:format("roomManager at your service~n"),
     loop([], 0).
 
 askJoin([], _)-> false;
