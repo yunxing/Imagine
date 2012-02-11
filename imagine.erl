@@ -30,7 +30,7 @@ handle('GET', ["chat"], Req) ->
 	local ->
 	    {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr]);
 	remote ->
-	    Addr = {107,22,101,221};
+	    Addr = {23,20,58,119};
 	_UNDEFINED ->
 	    {ok, [{addr, Addr}]} = inet:ifget("wlan0", [addr])
     end,
