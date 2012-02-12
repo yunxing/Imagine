@@ -7,6 +7,7 @@
 		imagine_sup,
 		imagine_app,
 		room,
+		remote,
 		roomManager,
 		utility_server,
 		gmail,

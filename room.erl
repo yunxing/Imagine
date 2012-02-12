@@ -52,7 +52,7 @@ loop(Q, Tab, E)->
 		    if
 			length(Q) == 4 ->
 			    Pid!{self(), detach},
-			    Total = 1 * 60 * 1,
+			    Total = 1 * 30 * 1,
 			    timer:send_after(Total * 1000,
 				       self(),
 				       {timeup}),

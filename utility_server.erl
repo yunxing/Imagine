@@ -44,6 +44,7 @@
 start_link() ->
     register(manager, spawn_link(fun() -> roomManager:start()end)),
     register(mail, spawn_link(fun() -> gmail:start()end)),
+    spawn_link(fun() -> tcpgateway:start() end),
     gen_server:start_link(?MODULE, [], []).
 
 % ============================ /\ API ======================================================================
