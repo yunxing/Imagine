@@ -45,6 +45,7 @@ waitForEmailAndSex()->
 handle_websocket(Ws, ID, Room)->
     receive
 	{socket, Data}->
+	    io:format("from client:~p~n", [Data]),
 	    case re:run(Data, "^/(?<CMD>.*?)/\n?(?<ARG>.*)", [dotall, {capture, ['CMD','ARG'], list}]) of
 		{match, [CMD, ARG]}->
 		    case list_to_atom(CMD) of
@@ -53,7 +54,9 @@ handle_websocket(Ws, ID, Room)->
 			status ->
 			    Room ! {update, ID, list_to_atom(ARG)};
 			choice ->
-			    Room ! {choice, ID, list_to_integer(ARG)}
+			    io:format("get selecton~n"),
+			    Room ! {choice, ID, list_to_integer(ARG)},
+			    io:format("sendSelecttion~n")
 		    end,
 		    handle_websocket(Ws, ID, Room);
 		nomatch->
@@ -69,6 +72,10 @@ handle_websocket(Ws, ID, Room)->
 	    handle_websocket(Ws, ID, Room);
 	{system, CMD, ARG} ->
 	    case CMD of
+		nearEnd->
+		    send(Ws, ["/event/nearEnd"]),
+		    send(Ws, ["/say/sys/Make a selection now!"]),
+		    handle_websocket(Ws, ID, Room);
 		started->
 		    send(Ws,["/say/",
 				     "sys",
@@ -129,8 +136,12 @@ handle_websocket(Ws, ID, Room)->
 	    Room ! {update, ID, offline}, 
 	    Room ! {self(), closed, ID};
 	Other ->
-	    io:format("unknown command!~p~n", [Other])
+	    io:format("unknown command!~p~n", [Other]),
+	    handle_websocket(Ws, ID, Room)
     end.
 
+send(_Ws, []) ->
+    ok;
 send(Ws, Data) ->
-    gen_tcp:send(Ws, [Data]). 
+    io:format("sent to client:~p~n", [Data]),
+    gen_tcp:send(Ws, Data). 

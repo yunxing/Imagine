@@ -174,5 +174,6 @@ handle_websocket(Ws, ID, Room) ->
 	    Room ! {update, ID, offline}, 
 	    Room ! {self(), closed, ID};
 	Other ->
-	    io:format("unknown command!~p~n", [Other])
+	    io:format("unknown command!~p~n", [Other]),
+	    handle_websocket(Ws, ID, Room)
     end.

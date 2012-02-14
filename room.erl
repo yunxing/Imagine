@@ -52,10 +52,14 @@ loop(Q, Tab, E)->
 		    if
 			length(Q) == 4 ->
 			    Pid!{self(), detach},
-			    Total = 1 * 30 * 1,
+			    Total = 1 * 60 * 1,
+			    NearEnd = Total - 15,
 			    timer:send_after(Total * 1000,
 				       self(),
 				       {timeup}),
+			    timer:send_after(NearEnd * 1000,
+				       self(),
+				       {nearEnd, NearEnd}),
 			    notifyAll([Waiter|Q], started, Total);
 			true -> true
 		    end,
@@ -64,6 +68,10 @@ loop(Q, Tab, E)->
 	{say, ID, DATA} ->
 	    sendAll(Q, ID, DATA, say),
 	    loop(Q, Tab, E);
+	{nearEnd, NearEnd} ->
+	    io:format("time is near!~n"),
+	    notifyAll(Q, nearEnd, NearEnd),
+	    loop(Q, Tab, E);	    
 	{timeup} ->
 	    io:format("time up~n"),
 	    Total = 1 * 4 * 1000,
